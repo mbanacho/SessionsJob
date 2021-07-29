@@ -1,6 +1,5 @@
 package com.kantar.sessionsjob;
 
-import com.ginsberg.junit.exit.ExpectSystemExit;
 import com.ginsberg.junit.exit.ExpectSystemExitWithStatus;
 import com.kantar.sessionsjob.analyzer.SessionAnalyzerService;
 import org.junit.jupiter.api.Test;
@@ -27,6 +26,13 @@ class SessionAnalyzerRunnerTest {
     @ExpectSystemExitWithStatus(1)
     void runWithOneParameters_shouldFinnishWithSystemExit(){
         String[] arg = {"/path/to/one/file.psv"};
+        testedClass.run(arg);
+    }
+
+    @Test
+    @ExpectSystemExitWithStatus(1)
+    void runWithThreeParameters_shouldFinnishWithSystemExit(){
+        String[] arg = {"/path/to/one/file.psv","/path/to/one/file.psv","/path/to/one/file.psv"};
         testedClass.run(arg);
     }
 

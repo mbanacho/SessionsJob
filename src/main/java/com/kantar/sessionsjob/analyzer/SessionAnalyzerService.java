@@ -30,39 +30,46 @@ public class SessionAnalyzerService {
 
     private List<SessionRecordOutput> transformSessionsRecords(Map<Long, List<SessionRecordInput>> sessionsByHomeNo) {
         return sessionsByHomeNo
-            .entrySet()
+            .values()
             .stream()
-            .flatMap(entry -> analyzeSession(entry.getValue()).stream())
-            .sorted(Comparator.comparing(SessionRecordOutput::getHomeNo).thenComparing(SessionRecordOutput::getStartTime))
+            .flatMap(session -> analyzeSession(session).stream())
             .collect(Collectors.toList());
     }
 
     private List<SessionRecordOutput> analyzeSession(List<SessionRecordInput> sessionRecords) {
         if(sessionRecords.size() == 1){
-            return Collections.singletonList(getMarginalOutputSessionRow(sessionRecords.get(0)));
+            return Collections.singletonList(createMarginalOutputSessionRow(sessionRecords.get(0)));
         } else {
             final List<SessionRecordInput> sortedInputSessionRecords = sessionRecords.stream()
                 .sorted(Comparator.comparing(SessionRecordInput::getStartTime))
                 .collect(Collectors.toList());
 
             List<SessionRecordOutput> sessionRecordsOutputs = IntStream.range(0, sortedInputSessionRecords.size() - 1)
-                .mapToObj(i -> analyzeSession(sortedInputSessionRecords.get(i), sortedInputSessionRecords.get(i + 1)))
+                .mapToObj(i -> analyzeRecords(sortedInputSessionRecords.get(i), sortedInputSessionRecords.get(i + 1)))
                 .collect(Collectors.toList());
 
-            sessionRecordsOutputs.add(getMarginalOutputSessionRow(sortedInputSessionRecords.get(sortedInputSessionRecords.size() - 1)));
+            sessionRecordsOutputs.add(createMarginalOutputSessionRow(sortedInputSessionRecords.get(sortedInputSessionRecords.size() - 1)));
             return sessionRecordsOutputs;
         }
     }
 
-    private SessionRecordOutput analyzeSession(SessionRecordInput firstSessionRecord, SessionRecordInput secondSessionRecord) {
-        LocalDateTime endTime = secondSessionRecord.getStartTime().minusSeconds(1);
-        long duration = getDurationInSeconds(firstSessionRecord.getStartTime(), secondSessionRecord.getStartTime());
+    private SessionRecordOutput analyzeRecords(SessionRecordInput firstSessionRecord, SessionRecordInput secondSessionRecord) {
+        final LocalDateTime secondSessionRecordStartTime = secondSessionRecord.getStartTime();
+        final LocalDateTime firstSessionRecordStartTime = firstSessionRecord.getStartTime();
 
-        return new SessionRecordOutput(firstSessionRecord, endTime, duration);
+        if(firstSessionRecordStartTime.getDayOfYear() == secondSessionRecordStartTime.getDayOfYear()
+                && firstSessionRecordStartTime.getYear() == secondSessionRecordStartTime.getYear()){
+
+            LocalDateTime endTime = secondSessionRecordStartTime.minusSeconds(1);
+            long duration = getDurationInSeconds(firstSessionRecordStartTime, secondSessionRecordStartTime);
+            return new SessionRecordOutput(firstSessionRecord, endTime, duration);
+        } else {
+            return createMarginalOutputSessionRow(firstSessionRecord);
+        }
     }
 
-    private SessionRecordOutput getMarginalOutputSessionRow(SessionRecordInput recordInput) {
-        final LocalDateTime endTime = recordInput.getStartTime().toLocalDate().atTime(LocalTime.MAX);
+    private SessionRecordOutput createMarginalOutputSessionRow(SessionRecordInput recordInput) {
+        LocalDateTime endTime = recordInput.getStartTime().toLocalDate().atTime(LocalTime.MAX);
         log.debug("Calculated end time {}: ", endTime);
         return new SessionRecordOutput(recordInput, endTime, getDurationInSeconds(recordInput.getStartTime(), endTime.plusNanos(1)));
     }
